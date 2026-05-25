@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>注册 - 记账本</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='css/style.css') }}" rel="stylesheet">
+</head>
+<body>
+    <div class="auth-page">
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                <div class="toast-container">
+                    {% for category, message in messages %}
+                        <div class="toast-msg toast-{{ category }}">{{ message }}</div>
+                    {% endfor %}
+                </div>
+            {% endif %}
+        {% endwith %}
+
+        <div class="auth-card">
+            <div class="auth-logo">
+                <i class="bi bi-wallet2"></i>
+                <h3>创建账户</h3>
+                <p>开始记录你的收支</p>
+            </div>
+            <form method="POST" action="{{ url_for('register') }}">
+                <div class="mb-3">
+                    <label for="username" class="form-label">用户名</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-person"></i></span>
+                        <input type="text" class="form-control" id="username" name="username"
+                               placeholder="设置用户名" required autofocus>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">邮箱</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-envelope"></i></span>
+                        <input type="email" class="form-control" id="email" name="email"
+                               placeholder="输入邮箱" required>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">密码</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock"></i></span>
+                        <input type="password" class="form-control" id="password" name="password"
+                               placeholder="设置密码" required>
+                    </div>
+                </div>
+                <div class="mb-4">
+                    <label for="password2" class="form-label">确认密码</label>
+                    <div class="input-group">
+                        <span class="input-group-text"><i class="bi bi-lock-fill"></i></span>
+                        <input type="password" class="form-control" id="password2" name="password2"
+                               placeholder="再次输入密码" required>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary btn-lg w-100 mb-3">
+                    注 册
+                </button>
+            </form>
+            <div class="text-center">
+                <span class="text-muted">已有账户？</span>
+                <a href="{{ url_for('login') }}" style="color: var(--primary); font-weight: 500;">立即登录</a>
+            </div>
+        </div>
+    </div>
+    <script>
+        setTimeout(() => {
+            document.querySelectorAll('.toast-msg').forEach(el => {
+                el.style.opacity = '0';
+                setTimeout(() => el.remove(), 300);
+            });
+        }, 2500);
+    </script>
+</body>
+</html>

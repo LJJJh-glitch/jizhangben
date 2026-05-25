@@ -1,0 +1,249 @@
+{% extends "base.html" %}
+{% block title %}{{ '编辑' if edit else '记一笔' }} - 记账本{% endblock %}
+{% block header_title %}{{ '编辑记录' if edit else '记一笔' }}{% endblock %}
+{% block header_left %}
+<a href="{{ url_for('transactions_list') }}"><i class="bi bi-arrow-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<form method="POST" action="{{ url_for('transaction_edit', id=transaction.id) if edit else url_for('transaction_add') }}" id="transForm">
+
+    <!-- 类型切换 -->
+    <div class="type-switch">
+        <button type="button" class="btn {% if not edit or transaction.type == 'expense' %}active-expense{% endif %}" data-type="expense">
+            <i class="bi bi-arrow-down-circle"></i> 支出
+        </button>
+        <button type="button" class="btn {% if edit and transaction.type == 'income' %}active-income{% endif %}" data-type="income">
+            <i class="bi bi-arrow-up-circle"></i> 收入
+        </button>
+    </div>
+    <input type="hidden" name="type" id="typeInput" value="{{ 'income' if edit and transaction.type == 'income' else 'expense' }}">
+
+    <!-- 金额输入 -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <label class="form-label">金额</label>
+            <div class="input-group input-group-lg">
+                <span class="input-group-text" style="font-size:22px; font-weight:700;">¥</span>
+                <input type="number" class="form-control" id="amount" name="amount"
+                       step="0.01" min="0.01" required inputmode="decimal"
+                       value="{{ "%.2f"|format(transaction.amount) if edit else '' }}"
+                       placeholder="0.00" style="font-size:28px; font-weight:700; font-family:'DIN Alternate',monospace;">
+            </div>
+            <!-- 快捷金额 -->
+            <div class="quick-amounts">
+                <button type="button" class="quick-amt-btn">10</button>
+                <button type="button" class="quick-amt-btn">20</button>
+                <button type="button" class="quick-amt-btn">50</button>
+                <button type="button" class="quick-amt-btn">100</button>
+                <button type="button" class="quick-amt-btn">200</button>
+                <button type="button" class="quick-amt-btn">500</button>
+                <button type="button" class="quick-amt-btn">1000</button>
+                <button type="button" class="quick-amt-btn" style="color:var(--danger);">清空</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- 分类选择 -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <label class="form-label">分类</label>
+            <div class="category-grid" id="categoryGrid">
+                {% for cat in categories %}
+                <div class="category-item {% if edit and transaction.category_id == cat.id %}selected{% endif %}"
+                     data-id="{{ cat.id }}" data-type="{{ cat.type }}">
+                    <i class="bi {{ cat.icon }}"></i>
+                    <span>{{ cat.name }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="category_id" id="categoryInput"
+                   value="{{ transaction.category_id if edit else '' }}" required>
+        </div>
+    </div>
+
+    <!-- 账户选择 -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <label class="form-label">账户</label>
+            <div class="filter-bar" style="flex-wrap:wrap;">
+                {% for account in accounts %}
+                <button type="button" class="filter-chip account-chip {% if edit and transaction.account_id == account.id %}active{% endif %}"
+                        data-id="{{ account.id }}">
+                    {{ account.name }}
+                </button>
+                {% endfor %}
+            </div>
+            {% if not accounts %}
+                <div style="font-size:13px; color:var(--danger);">
+                    请先 <a href="{{ url_for('accounts_list') }}">添加账户</a>
+                </div>
+            {% endif %}
+            <input type="hidden" name="account_id" id="accountInput"
+                   value="{{ transaction.account_id if edit else '' }}" required>
+        </div>
+    </div>
+
+    <!-- 日期 -->
+    <div class="card mb-3">
+        <div class="card-body">
+            <label class="form-label">日期</label>
+            <div class="date-chips" id="dateChips">
+                <button type="button" class="date-chip active" data-date="{{ today }}">今天</button>
+                <button type="button" class="date-chip" data-date="{{ yesterday }}">昨天</button>
+                <button type="button" class="date-chip" data-date="{{ two_days_ago }}">前天</button>
+                {% for d in recent_dates %}
+                <button type="button" class="date-chip" data-date="{{ d }}">{{ d[5:] }}</button>
+                {% endfor %}
+            </div>
+            <input type="hidden" name="date" id="dateInput" value="{{ today }}" required>
+        </div>
+    </div>
+
+    <!-- 标签 -->
+    {% if tags %}
+    <div class="card mb-3">
+        <div class="card-body">
+            <label class="form-label">标签</label>
+            <div class="d-flex flex-wrap gap-2">
+                {% for tag in tags %}
+                <button type="button" class="filter-chip tag-chip {% if edit and tag.id in selected_tags %}active{% endif %}"
+                        data-id="{{ tag.id }}">
+                    {{ tag.name }}
+                </button>
+                {% endfor %}
+            </div>
+            <div id="selectedTags"></div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 备注 -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <label class="form-label">备注</label>
+            <input type="text" class="form-control" name="description"
+                   value="{{ transaction.description if edit else '' }}"
+                   placeholder="添加备注（可选）">
+        </div>
+    </div>
+
+    <!-- 提交按钮 -->
+    <button type="submit" class="btn btn-primary btn-lg w-100">
+        <i class="bi bi-check-circle"></i> {{ '保存修改' if edit else '保存' }}
+    </button>
+</form>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 类型切换
+document.querySelectorAll('.type-switch .btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('.type-switch .btn').forEach(b => {
+            b.classList.remove('active-expense', 'active-income');
+        });
+        const type = this.dataset.type;
+        this.classList.add('active-' + type);
+        document.getElementById('typeInput').value = type;
+        filterCategories(type);
+    });
+});
+
+// 分类筛选
+function filterCategories(type) {
+    document.querySelectorAll('.category-item').forEach(item => {
+        if (item.dataset.type === type) {
+            item.style.display = '';
+        } else {
+            item.style.display = 'none';
+            item.classList.remove('selected');
+        }
+    });
+    // 重置选择
+    const visible = document.querySelectorAll('.category-item[data-type="'+type+'"]');
+    const selected = document.querySelector('.category-item.selected');
+    if (!selected || selected.style.display === 'none') {
+        document.getElementById('categoryInput').value = '';
+    }
+}
+
+// 分类选择
+document.querySelectorAll('.category-item').forEach(item => {
+    item.addEventListener('click', function() {
+        document.querySelectorAll('.category-item').forEach(i => i.classList.remove('selected'));
+        this.classList.add('selected');
+        document.getElementById('categoryInput').value = this.dataset.id;
+    });
+});
+
+// 账户选择
+document.querySelectorAll('.account-chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+        document.querySelectorAll('.account-chip').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('accountInput').value = this.dataset.id;
+    });
+});
+
+// 标签选择
+document.querySelectorAll('.tag-chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+        this.classList.toggle('active');
+        updateTags();
+    });
+});
+
+function updateTags() {
+    const container = document.getElementById('selectedTags');
+    container.innerHTML = '';
+    document.querySelectorAll('.tag-chip.active').forEach(chip => {
+        const input = document.createElement('input');
+        input.type = 'hidden';
+        input.name = 'tags';
+        input.value = chip.dataset.id;
+        container.appendChild(input);
+    });
+}
+
+// 快捷金额
+document.querySelectorAll('.quick-amt-btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        const input = document.getElementById('amount');
+        if (this.textContent === '清空') {
+            input.value = '';
+        } else {
+            input.value = this.textContent;
+        }
+        input.focus();
+    });
+});
+
+// 日期选择
+document.querySelectorAll('.date-chip').forEach(chip => {
+    chip.addEventListener('click', function() {
+        document.querySelectorAll('.date-chip').forEach(c => c.classList.remove('active'));
+        this.classList.add('active');
+        document.getElementById('dateInput').value = this.dataset.date;
+    });
+});
+
+// 初始化筛选
+const initType = document.getElementById('typeInput').value || 'expense';
+filterCategories(initType);
+updateTags();
+
+// 表单验证
+document.getElementById('transForm').addEventListener('submit', function(e) {
+    const cat = document.getElementById('categoryInput').value;
+    const acc = document.getElementById('accountInput').value;
+    if (!cat) {
+        e.preventDefault();
+        alert('请选择分类');
+    } else if (!acc) {
+        e.preventDefault();
+        alert('请选择账户');
+    }
+});
+</script>
+{% endblock %}

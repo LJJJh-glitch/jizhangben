@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% block title %}更多 - 记账本{% endblock %}
+{% block header_title %}更多{% endblock %}
+
+{% block content %}
+<!-- 用户信息 -->
+<div class="card mb-3">
+    <div class="card-body d-flex align-center gap-3">
+        <div style="width:52px;height:52px;border-radius:50%;background:var(--primary);display:flex;align-items:center;justify-content:center;color:#fff;font-size:22px;font-weight:600;">
+            {{ current_user.username[0]|upper }}
+        </div>
+        <div>
+            <div style="font-size:16px;font-weight:600;">{{ current_user.username }}</div>
+            <div style="font-size:13px;color:var(--gray-400);">{{ current_user.email }}</div>
+        </div>
+    </div>
+</div>
+
+<!-- 功能菜单 -->
+<div class="card mb-3">
+    <div class="card-header">账户管理</div>
+    <div class="card-body" style="padding:8px 0;">
+        <a href="{{ url_for('accounts_list') }}" class="list-item">
+            <div class="item-icon" style="background:#eef2ff;color:var(--primary);">
+                <i class="bi bi-bank"></i>
+            </div>
+            <div class="item-body">
+                <div class="item-title">我的账户</div>
+                <div class="item-sub">管理银行卡、现金、支付宝等</div>
+            </div>
+            <i class="bi bi-chevron-right" style="color:var(--gray-400);"></i>
+        </a>
+        <a href="{{ url_for('categories_list') }}" class="list-item">
+            <div class="item-icon" style="background:#fef3c7;color:#d97706;">
+                <i class="bi bi-tags"></i>
+            </div>
+            <div class="item-body">
+                <div class="item-title">分类管理</div>
+                <div class="item-sub">自定义收支分类</div>
+            </div>
+            <i class="bi bi-chevron-right" style="color:var(--gray-400);"></i>
+        </a>
+        <a href="{{ url_for('tags_list') }}" class="list-item">
+            <div class="item-icon" style="background:#dbeafe;color:#2563eb;">
+                <i class="bi bi-bookmark"></i>
+            </div>
+            <div class="item-body">
+                <div class="item-title">标签管理</div>
+                <div class="item-sub">创建标签标记交易</div>
+            </div>
+            <i class="bi bi-chevron-right" style="color:var(--gray-400);"></i>
+        </a>
+        <a href="{{ url_for('budget_list') }}" class="list-item">
+            <div class="item-icon" style="background:#fce7f3;color:#db2777;">
+                <i class="bi bi-pie-chart"></i>
+            </div>
+            <div class="item-body">
+                <div class="item-title">预算管理</div>
+                <div class="item-sub">设置月度预算，控制支出</div>
+            </div>
+            <i class="bi bi-chevron-right" style="color:var(--gray-400);"></i>
+        </a>
+    </div>
+</div>
+
+<div class="card mb-3">
+    <div class="card-header">数据</div>
+    <div class="card-body" style="padding:8px 0;">
+        <a href="{{ url_for('reports') }}" class="list-item">
+            <div class="item-icon" style="background:#d1fae5;color:#059669;">
+                <i class="bi bi-bar-chart"></i>
+            </div>
+            <div class="item-body">
+                <div class="item-title">统计报表</div>
+                <div class="item-sub">收支趋势、分类排行</div>
+            </div>
+            <i class="bi bi-chevron-right" style="color:var(--gray-400);"></i>
+        </a>
+        <a href="{{ url_for('export_csv') }}" class="list-item">
+            <div class="item-icon" style="background:#f3e8ff;color:#7c3aed;">
+                <i class="bi bi-download"></i>
+            </div>
+            <div class="item-body">
+                <div class="item-title">导出数据</div>
+                <div class="item-sub">导出为 CSV 文件</div>
+            </div>
+            <i class="bi bi-chevron-right" style="color:var(--gray-400);"></i>
+        </a>
+    </div>
+</div>
+
+<div class="text-center mt-4">
+    <a href="{{ url_for('logout') }}" class="btn btn-outline-danger" style="width:200px;">
+        <i class="bi bi-box-arrow-right"></i> 退出登录
+    </a>
+</div>
+{% endblock %}

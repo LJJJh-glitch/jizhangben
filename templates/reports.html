@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}报表 - 记账本{% endblock %}
+{% block header_title %}统计报表{% endblock %}
+{% block header_right %}
+<select class="form-select form-select-sm" style="width:auto; padding:4px 24px 4px 8px; font-size:12px; background:rgba(255,255,255,0.2); color:#fff; border:none;"
+        onchange="location.href='?year='+this.value">
+    {% for y in range(2024, 2030) %}
+        <option value="{{ y }}" {% if y == year %}selected{% endif %} style="color:#333;">{{ y }}年</option>
+    {% endfor %}
+</select>
+{% endblock %}
+
+{% block content %}
+<!-- 年度汇总 -->
+<div class="stat-card bg-income mb-2">
+    <div class="stat-label">年度收入</div>
+    <div class="stat-value">{{ "%.0f"|format(year_income) }}</div>
+    <i class="bi bi-arrow-up-circle stat-icon"></i>
+</div>
+<div class="stat-card bg-expense mb-2">
+    <div class="stat-label">年度支出</div>
+    <div class="stat-value">{{ "%.0f"|format(year_expense) }}</div>
+    <i class="bi bi-arrow-down-circle stat-icon"></i>
+</div>
+<div class="stat-card bg-balance mb-3">
+    <div class="stat-label">年度结余</div>
+    <div class="stat-value">{{ "%.0f"|format(year_income - year_expense) }}</div>
+    <i class="bi bi-wallet2 stat-icon"></i>
+</div>
+
+<!-- 月度趋势图 -->
+<div class="card mb-3">
+    <div class="card-header">月度趋势</div>
+    <div class="card-body" style="padding:12px;">
+        <canvas id="monthlyChart" style="max-height:240px;"></canvas>
+    </div>
+</div>
+
+<!-- 分类排行 -->
+{% if sorted_categories %}
+<div class="card mb-3">
+    <div class="card-header">支出排行</div>
+    <div style="padding:0;">
+        {% for name, amount in sorted_categories[:8] %}
+        <div class="d-flex justify-between align-center" style="padding:12px 16px; border-bottom:1px solid var(--gray-100);">
+            <div class="d-flex align-center gap-2">
+                <span style="width:24px; height:24px; border-radius:6px; background:var(--gray-50); display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:600; color:var(--gray-400);">
+                    {{ loop.index }}
+                </span>
+                <span style="font-size:14px;">{{ name }}</span>
+            </div>
+            <span style="font-weight:600; color:var(--danger); font-family:'DIN Alternate',monospace;">
+                ¥{{ "%.0f"|format(amount) }}
+            </span>
+        </div>
+        {% endfor %}
+    </div>
+</div>
+{% endif %}
+
+<!-- 月度明细 -->
+<div class="card mb-3">
+    <div class="card-header">月度明细</div>
+    <div style="padding:0;">
+        {% for data in monthly_data %}
+        <div class="d-flex justify-between align-center" style="padding:12px 16px; border-bottom:1px solid var(--gray-100);">
+            <span style="font-size:14px; font-weight:500;">{{ data.month }}月</span>
+            <div class="d-flex gap-3" style="font-size:13px;">
+                <span class="text-success">+{{ "%.0f"|format(data.income) }}</span>
+                <span class="text-danger">-{{ "%.0f"|format(data.expense) }}</span>
+                <span style="font-weight:600; min-width:60px; text-align:right; {% if data.balance < 0 %}color:var(--danger){% endif %}">
+                    {{ "%.0f"|format(data.balance) }}
+                </span>
+            </div>
+        </div>
+        {% endfor %}
+        <div class="d-flex justify-between align-center" style="padding:12px 16px; background:var(--gray-50); font-weight:600;">
+            <span>合计</span>
+            <div class="d-flex gap-3" style="font-size:13px;">
+                <span class="text-success">+{{ "%.0f"|format(year_income) }}</span>
+                <span class="text-danger">-{{ "%.0f"|format(year_expense) }}</span>
+                <span style="min-width:60px; text-align:right; {% if year_income - year_expense < 0 %}color:var(--danger){% endif %}">
+                    {{ "%.0f"|format(year_income - year_expense) }}
+                </span>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- 导出 -->
+<div class="text-center mb-3">
+    <a href="{{ url_for('export_csv') }}" class="btn btn-outline-secondary" style="font-size:13px;">
+        <i class="bi bi-download"></i> 导出全年数据
+    </a>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+const monthlyData = {{ monthly_data|tojson }};
+const ctx = document.getElementById('monthlyChart').getContext('2d');
+new Chart(ctx, {
+    type: 'bar',
+    data: {
+        labels: monthlyData.map(d => d.month + '月'),
+        datasets: [
+            {
+                label: '收入',
+                data: monthlyData.map(d => d.income),
+                backgroundColor: 'rgba(28,200,138,0.7)',
+                borderRadius: 4
+            },
+            {
+                label: '支出',
+                data: monthlyData.map(d => d.expense),
+                backgroundColor: 'rgba(231,74,59,0.7)',
+                borderRadius: 4
+            }
+        ]
+    },
+    options: {
+        responsive: true,
+        plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 12, font: { size: 12 } } } },
+        scales: {
+            x: { grid: { display: false } },
+            y: { beginAtZero: true, ticks: { callback: v => '¥' + v.toLocaleString(), font: { size: 11 } } }
+        }
+    }
+});
+</script>
+{% endblock %}

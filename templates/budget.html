@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}预算 - 记账本{% endblock %}
+{% block header_title %}预算管理{% endblock %}
+{% block header_left %}
+<a href="{{ url_for('more_menu') }}"><i class="bi bi-arrow-left"></i></a>
+{% endblock %}
+{% block header_right %}
+<button data-bs-toggle="modal" data-bs-target="#addModal"><i class="bi bi-plus-lg"></i></button>
+{% endblock %}
+
+{% block content %}
+<!-- 月份选择 -->
+<div class="d-flex align-center justify-between mb-3">
+    <div></div>
+    <div class="d-flex gap-2">
+        <select class="form-select form-select-sm" style="width:auto; padding:6px 28px 6px 10px; font-size:13px;"
+                onchange="location.href='?year='+this.value+'&month={{ month }}'">
+            {% for y in range(2024, 2030) %}
+                <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}年</option>
+            {% endfor %}
+        </select>
+        <select class="form-select form-select-sm" style="width:auto; padding:6px 28px 6px 10px; font-size:13px;"
+                onchange="location.href='?year={{ year }}&month='+this.value">
+            {% for m in range(1, 13) %}
+                <option value="{{ m }}" {% if m == month %}selected{% endif %}>{{ m }}月</option>
+            {% endfor %}
+        </select>
+    </div>
+</div>
+
+{% if budget_data %}
+{% for item in budget_data %}
+{% set pct = item.percent %}
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex justify-between align-center mb-2">
+            <div class="d-flex align-center gap-2">
+                <i class="bi {{ item.budget.category.icon }}" style="font-size:20px; color:var(--primary);"></i>
+                <span style="font-weight:600;">{{ item.budget.category.name }}</span>
+            </div>
+            <form method="POST" action="{{ url_for('budget_delete', id=item.budget.id) }}"
+                  onsubmit="return confirm('确定删除？')">
+                <button type="submit" class="btn-close" style="font-size:12px;"></button>
+            </form>
+        </div>
+
+        <div class="d-flex justify-between mb-1" style="font-size:13px;">
+            <span>¥{{ "%.0f"|format(item.spent) }}</span>
+            <span class="{% if pct > 100 %}text-danger{% elif pct > 80 %}text-warning{% endif %}">
+                {{ pct }}%
+            </span>
+        </div>
+        <div class="progress-bar-wrap mb-2">
+            <div class="progress-bar-fill {% if pct > 100 %}over{% elif pct > 80 %}warn{% else %}ok{% endif %}"
+                 style="width: {{ [pct, 100]|min }}%"></div>
+        </div>
+        <div class="d-flex justify-between" style="font-size:12px; color:var(--gray-400);">
+            <span>预算 ¥{{ "%.0f"|format(item.budget.amount) }}</span>
+            <span>剩余 ¥{{ "%.0f"|format(item.remaining) }}</span>
+        </div>
+
+        {% if pct > 100 %}
+        <div style="margin-top:8px; padding:8px 12px; background:#fef2f2; border-radius:8px; font-size:12px; color:var(--danger);">
+            <i class="bi bi-exclamation-triangle"></i> 已超支 ¥{{ "%.0f"|format(item.spent - item.budget.amount) }}
+        </div>
+        {% elif pct > 80 %}
+        <div style="margin-top:8px; padding:8px 12px; background:#fffbeb; border-radius:8px; font-size:12px; color:#d97706;">
+            <i class="bi bi-exclamation-circle"></i> 即将达到预算上限
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-pie-chart"></i>
+    <p>还没有设置预算</p>
+</div>
+{% endif %}
+
+<!-- 添加按钮 -->
+<button class="btn btn-primary btn-lg w-100 mt-3" data-bs-toggle="modal" data-bs-target="#addModal">
+    <i class="bi bi-plus-circle"></i> 设置预算
+</button>
+
+<!-- 添加模态框 -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-sm" style="margin-top:20vh;">
+        <div class="modal-content" style="border-radius:16px;">
+            <form method="POST" action="{{ url_for('budget_add') }}">
+                <input type="hidden" name="year" value="{{ year }}">
+                <input type="hidden" name="month" value="{{ month }}">
+                <div class="modal-header" style="border:none; padding:16px 16px 0;">
+                    <h6 class="modal-title">设置预算</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">分类</label>
+                        <select class="form-select" name="category_id" required>
+                            <option value="">选择分类</option>
+                            {% for cat in expense_categories %}
+                                <option value="{{ cat.id }}">{{ cat.name }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">预算金额</label>
+                        <div class="input-group">
+                            <span class="input-group-text">¥</span>
+                            <input type="number" class="form-control" name="amount" step="1" min="1" required
+                                   placeholder="0" inputmode="decimal">
+                        </div>
+                    </div>
+                    <div style="font-size:12px; color:var(--gray-400); text-align:center;">
+                        {{ year }}年{{ month }}月
+                    </div>
+                </div>
+                <div class="modal-footer" style="border:none;">
+                    <button type="submit" class="btn btn-primary w-100">设置</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

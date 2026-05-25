@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}明细 - 记账本{% endblock %}
+{% block header_title %}交易明细{% endblock %}
+{% block header_right %}
+<a href="{{ url_for('transaction_add') }}"><i class="bi bi-plus-lg"></i></a>
+{% endblock %}
+
+{% block content %}
+<!-- 筛选条 -->
+<div class="filter-bar">
+    <a href="{{ url_for('transactions_list') }}" class="filter-chip {% if not request.args.get('type') and not request.args.get('account_id') and not request.args.get('category_id') %}active{% endif %}">全部</a>
+    <a href="{{ url_for('transactions_list', type='expense') }}" class="filter-chip {% if request.args.get('type') == 'expense' %}active{% endif %}">支出</a>
+    <a href="{{ url_for('transactions_list', type='income') }}" class="filter-chip {% if request.args.get('type') == 'income' %}active{% endif %}">收入</a>
+    {% for account in accounts %}
+    <a href="{{ url_for('transactions_list', account_id=account.id) }}" class="filter-chip {% if request.args.get('account_id')|int == account.id %}active{% endif %}">{{ account.name }}</a>
+    {% endfor %}
+</div>
+
+<!-- 日期范围筛选 -->
+<div class="card mb-3">
+    <div class="card-body" style="padding:10px 14px;">
+        <form method="GET" class="d-flex align-center gap-2" style="flex-wrap:wrap;">
+            <input type="date" name="start_date" class="form-control form-control-sm" value="{{ request.args.get('start_date', '') }}" style="flex:1; min-width:120px;">
+            <span style="color:var(--gray-400);">~</span>
+            <input type="date" name="end_date" class="form-control form-control-sm" value="{{ request.args.get('end_date', '') }}" style="flex:1; min-width:120px;">
+            <button type="submit" class="btn btn-primary btn-sm" style="padding:6px 14px;">筛选</button>
+        </form>
+    </div>
+</div>
+
+<!-- 交易列表 -->
+{% if transactions %}
+<div class="list-card mb-3">
+    {% set current_date = {'val': ''} %}
+    {% for t in transactions %}
+        {% set date_str = t.date.strftime('%Y-%m-%d') %}
+        {% if date_str != current_date.val %}
+            {% if current_date.update({'val': date_str}) %}{% endif %}
+            <div style="padding:10px 16px 4px; font-size:12px; color:var(--gray-400); font-weight:500; background:var(--gray-50);">
+                {{ t.date.strftime('%m月%d日') }}
+                {% if t.date == today %}今天{% endif %}
+            </div>
+        {% endif %}
+        <a href="{{ url_for('transaction_edit', id=t.id) }}" class="list-item">
+            <div class="item-icon {{ t.type }}">
+                <i class="bi {{ t.category.icon }}"></i>
+            </div>
+            <div class="item-body">
+                <div class="item-title">
+                    {{ t.category.name }}
+                    {% for at in t.tag_associations.all() %}
+                        <span class="tag tag-info">{{ at.tag.name }}</span>
+                    {% endfor %}
+                </div>
+                <div class="item-sub">{{ t.account.name }}{% if t.description %} · {{ t.description }}{% endif %}</div>
+            </div>
+            <div class="item-amount {{ t.type }}">
+                {{ '+' if t.type == 'income' else '-' }}{{ "%.2f"|format(t.amount) }}
+            </div>
+        </a>
+    {% endfor %}
+</div>
+
+<!-- 分页 -->
+{% if pagination.pages > 1 %}
+<div class="d-flex justify-between align-center mb-3" style="padding:0 8px;">
+    {% if pagination.has_prev %}
+        <a href="{{ url_for('transactions_list', page=pagination.prev_num, **request.args) }}" class="btn btn-outline-primary btn-sm">上一页</a>
+    {% else %}<div></div>{% endif %}
+    <span style="font-size:13px; color:var(--gray-400);">{{ pagination.page }}/{{ pagination.pages }}</span>
+    {% if pagination.has_next %}
+        <a href="{{ url_for('transactions_list', page=pagination.next_num, **request.args) }}" class="btn btn-outline-primary btn-sm">下一页</a>
+    {% else %}<div></div>{% endif %}
+</div>
+{% endif %}
+
+<!-- 导出按钮 -->
+<div class="text-center mb-3">
+    <a href="{{ url_for('export_csv', start_date=request.args.get('start_date', ''), end_date=request.args.get('end_date', '')) }}"
+       class="btn btn-outline-secondary btn-sm" style="font-size:12px;">
+        <i class="bi bi-download"></i> 导出 CSV
+    </a>
+</div>
+
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-inbox"></i>
+    <p>暂无交易记录</p>
+    <a href="{{ url_for('transaction_add') }}" class="btn btn-primary">
+        <i class="bi bi-plus-circle"></i> 记一笔
+    </a>
+</div>
+{% endif %}
+{% endblock %}

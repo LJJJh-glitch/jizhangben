@@ -1,0 +1,124 @@
+{% extends "base.html" %}
+{% block title %}账户 - 记账本{% endblock %}
+{% block header_title %}我的账户{% endblock %}
+{% block header_left %}
+<a href="{{ url_for('more_menu') }}"><i class="bi bi-arrow-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<!-- 账户列表 -->
+{% if accounts %}
+{% for account in accounts %}
+<div class="card mb-3">
+    <div class="card-body d-flex justify-between align-center">
+        <div class="d-flex align-center gap-3">
+            <div style="width:48px;height:48px;border-radius:14px;background:var(--gray-50);display:flex;align-items:center;justify-content:center;">
+                <i class="bi bi-{{ 'cash-stack' if account.type == 'cash' else 'credit-card' if account.type == 'credit' else 'bank' if account.type == 'bank' else 'phone' if account.type == 'alipay' else 'chat-dots' }}"
+                   style="font-size:22px;color:var(--primary);"></i>
+            </div>
+            <div>
+                <div style="font-size:15px;font-weight:600;">{{ account.name }}</div>
+                <div style="font-size:12px;color:var(--gray-400);">{{ account_types.get(account.type, '') }}</div>
+            </div>
+        </div>
+        <div class="text-end">
+            <div style="font-size:20px;font-weight:700;font-family:'DIN Alternate',monospace; {% if account.balance < 0 %}color:var(--danger){% endif %}">
+                ¥{{ "%.2f"|format(account.balance) }}
+            </div>
+        </div>
+    </div>
+    <div style="border-top:1px solid var(--gray-100);padding:8px 16px;display:flex;gap:8px;">
+        <button class="btn btn-sm btn-outline-primary" style="flex:1; font-size:12px; padding:6px;"
+                data-bs-toggle="modal" data-bs-target="#editModal{{ account.id }}">
+            <i class="bi bi-pencil"></i> 编辑
+        </button>
+        <form method="POST" action="{{ url_for('account_delete', id=account.id) }}" style="flex:1;"
+              onsubmit="return confirm('确定删除该账户吗？')">
+            <button type="submit" class="btn btn-sm btn-outline-danger w-100" style="font-size:12px; padding:6px;">
+                <i class="bi bi-trash"></i> 删除
+            </button>
+        </form>
+    </div>
+</div>
+
+<!-- 编辑模态框 -->
+<div class="modal fade" id="editModal{{ account.id }}" tabindex="-1">
+    <div class="modal-dialog modal-sm" style="margin-top:20vh;">
+        <div class="modal-content" style="border-radius:16px;">
+            <form method="POST" action="{{ url_for('account_edit', id=account.id) }}">
+                <div class="modal-header" style="border:none; padding:16px 16px 0;">
+                    <h6 class="modal-title">编辑账户</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">名称</label>
+                        <input type="text" class="form-control" name="name" value="{{ account.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">类型</label>
+                        <select class="form-select" name="type" required>
+                            {% for key, value in account_types.items() %}
+                                <option value="{{ key }}" {% if account.type == key %}selected{% endif %}>{{ value }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border:none;">
+                    <button type="submit" class="btn btn-primary w-100">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-bank"></i>
+    <p>还没有添加账户</p>
+</div>
+{% endif %}
+
+<!-- 添加按钮 -->
+<button class="btn btn-primary btn-lg w-100 mt-3" data-bs-toggle="modal" data-bs-target="#addModal">
+    <i class="bi bi-plus-circle"></i> 添加账户
+</button>
+
+<!-- 添加模态框 -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-sm" style="margin-top:20vh;">
+        <div class="modal-content" style="border-radius:16px;">
+            <form method="POST" action="{{ url_for('account_add') }}">
+                <div class="modal-header" style="border:none; padding:16px 16px 0;">
+                    <h6 class="modal-title">添加账户</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">账户名称</label>
+                        <input type="text" class="form-control" name="name" required placeholder="例如：招商银行">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">类型</label>
+                        <select class="form-select" name="type" required>
+                            {% for key, value in account_types.items() %}
+                                <option value="{{ key }}">{{ value }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">初始余额</label>
+                        <div class="input-group">
+                            <span class="input-group-text">¥</span>
+                            <input type="number" class="form-control" name="balance" step="0.01" value="0" inputmode="decimal">
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer" style="border:none;">
+                    <button type="submit" class="btn btn-primary w-100">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

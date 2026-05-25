@@ -1,0 +1,65 @@
+{% extends "base.html" %}
+{% block title %}标签 - 记账本{% endblock %}
+{% block header_title %}标签管理{% endblock %}
+{% block header_left %}
+<a href="{{ url_for('more_menu') }}"><i class="bi bi-arrow-left"></i></a>
+{% endblock %}
+
+{% block content %}
+{% if tags %}
+<div class="card mb-3">
+    <div class="card-body">
+        <div class="d-flex flex-wrap gap-2">
+            {% for tag in tags %}
+            <div style="display:inline-flex; align-items:center; gap:6px; padding:8px 12px; background:var(--gray-50); border-radius:10px;">
+                <span style="font-size:14px;">{{ tag.name }}</span>
+                <button class="btn-close" style="font-size:10px; padding:2px;"
+                        data-bs-toggle="modal" data-bs-target="#editModal{{ tag.id }}"></button>
+                <form method="POST" action="{{ url_for('tag_delete', id=tag.id) }}"
+                      onsubmit="return confirm('确定删除标签「{{ tag.name }}」？')">
+                    <button type="submit" class="btn-close" style="font-size:10px; padding:2px; color:var(--danger);"></button>
+                </form>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="empty-state">
+    <i class="bi bi-bookmark"></i>
+    <p>还没有创建标签</p>
+</div>
+{% endif %}
+
+<button class="btn btn-primary btn-lg w-100 mt-3" data-bs-toggle="modal" data-bs-target="#addModal">
+    <i class="bi bi-plus-circle"></i> 添加标签
+</button>
+
+{% for tag in tags %}
+<div class="modal fade" id="editModal{{ tag.id }}" tabindex="-1">
+    <div class="modal-dialog modal-sm" style="margin-top:30vh;">
+        <div class="modal-content" style="border-radius:16px;">
+            <form method="POST" action="{{ url_for('tag_edit', id=tag.id) }}">
+                <div class="modal-body" style="padding:20px;">
+                    <input type="text" class="form-control mb-3" name="name" value="{{ tag.name }}" required>
+                    <button type="submit" class="btn btn-primary w-100">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-sm" style="margin-top:30vh;">
+        <div class="modal-content" style="border-radius:16px;">
+            <form method="POST" action="{{ url_for('tag_add') }}">
+                <div class="modal-body" style="padding:20px;">
+                    <input type="text" class="form-control mb-3" name="name" required placeholder="输入标签名称">
+                    <button type="submit" class="btn btn-primary w-100">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

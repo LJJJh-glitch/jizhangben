@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% block title %}分类 - 记账本{% endblock %}
+{% block header_title %}分类管理{% endblock %}
+{% block header_left %}
+<a href="{{ url_for('more_menu') }}"><i class="bi bi-arrow-left"></i></a>
+{% endblock %}
+
+{% block content %}
+<!-- 类型切换标签 -->
+<ul class="nav nav-pills mb-3" style="background:#fff; border-radius:12px; padding:4px;">
+    <li class="nav-item" style="flex:1;">
+        <button class="nav-link active w-100" data-bs-toggle="pill" data-bs-target="#expenseTab"
+                style="font-size:14px; border-radius:10px;">支出</button>
+    </li>
+    <li class="nav-item" style="flex:1;">
+        <button class="nav-link w-100" data-bs-toggle="pill" data-bs-target="#incomeTab"
+                style="font-size:14px; border-radius:10px;">收入</button>
+    </li>
+</ul>
+
+<div class="tab-content">
+    <!-- 支出分类 -->
+    <div class="tab-pane fade show active" id="expenseTab">
+        <div class="list-card mb-3">
+            {% for cat in expense_categories %}
+            <div class="list-item">
+                <div class="item-icon expense">
+                    <i class="bi {{ cat.icon }}"></i>
+                </div>
+                <div class="item-body">
+                    <div class="item-title">{{ cat.name }}</div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" style="padding:4px 8px; font-size:12px;"
+                            data-bs-toggle="modal" data-bs-target="#editModal{{ cat.id }}">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <form method="POST" action="{{ url_for('category_delete', id=cat.id) }}"
+                          onsubmit="return confirm('确定删除？')">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:4px 8px; font-size:12px;">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not expense_categories %}
+            <div class="empty-state" style="padding:24px;">暂无支出分类</div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- 收入分类 -->
+    <div class="tab-pane fade" id="incomeTab">
+        <div class="list-card mb-3">
+            {% for cat in income_categories %}
+            <div class="list-item">
+                <div class="item-icon income">
+                    <i class="bi {{ cat.icon }}"></i>
+                </div>
+                <div class="item-body">
+                    <div class="item-title">{{ cat.name }}</div>
+                </div>
+                <div class="d-flex gap-2">
+                    <button class="btn btn-sm btn-outline-primary" style="padding:4px 8px; font-size:12px;"
+                            data-bs-toggle="modal" data-bs-target="#editModal{{ cat.id }}">
+                        <i class="bi bi-pencil"></i>
+                    </button>
+                    <form method="POST" action="{{ url_for('category_delete', id=cat.id) }}"
+                          onsubmit="return confirm('确定删除？')">
+                        <button type="submit" class="btn btn-sm btn-outline-danger" style="padding:4px 8px; font-size:12px;">
+                            <i class="bi bi-trash"></i>
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% endfor %}
+            {% if not income_categories %}
+            <div class="empty-state" style="padding:24px;">暂无收入分类</div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<!-- 添加按钮 -->
+<button class="btn btn-primary btn-lg w-100 mt-2" data-bs-toggle="modal" data-bs-target="#addModal">
+    <i class="bi bi-plus-circle"></i> 添加分类
+</button>
+
+<!-- 编辑模态框 -->
+{% for cat in expense_categories + income_categories %}
+<div class="modal fade" id="editModal{{ cat.id }}" tabindex="-1">
+    <div class="modal-dialog modal-sm" style="margin-top:20vh;">
+        <div class="modal-content" style="border-radius:16px;">
+            <form method="POST" action="{{ url_for('category_edit', id=cat.id) }}">
+                <div class="modal-header" style="border:none; padding:16px 16px 0;">
+                    <h6 class="modal-title">编辑分类</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">名称</label>
+                        <input type="text" class="form-control" name="name" value="{{ cat.name }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">图标</label>
+                        <input type="text" class="form-control" name="icon" value="{{ cat.icon }}" placeholder="bi-circle">
+                    </div>
+                </div>
+                <div class="modal-footer" style="border:none;">
+                    <button type="submit" class="btn btn-primary w-100">保存</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endfor %}
+
+<!-- 添加模态框 -->
+<div class="modal fade" id="addModal" tabindex="-1">
+    <div class="modal-dialog modal-sm" style="margin-top:20vh;">
+        <div class="modal-content" style="border-radius:16px;">
+            <form method="POST" action="{{ url_for('category_add') }}">
+                <div class="modal-header" style="border:none; padding:16px 16px 0;">
+                    <h6 class="modal-title">添加分类</h6>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                </div>
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">类型</label>
+                        <div class="type-switch" style="margin-bottom:0;">
+                            <button type="button" class="btn active-expense" data-val="expense">支出</button>
+                            <button type="button" class="btn" data-val="income">收入</button>
+                        </div>
+                        <input type="hidden" name="type" id="newType" value="expense">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">名称</label>
+                        <input type="text" class="form-control" name="name" required placeholder="例如：交通">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">图标</label>
+                        <input type="text" class="form-control" name="icon" value="bi-circle" placeholder="bi-circle">
+                    </div>
+                </div>
+                <div class="modal-footer" style="border:none;">
+                    <button type="submit" class="btn btn-primary w-100">添加</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// 添加分类的类型切换
+document.querySelectorAll('#addModal .type-switch .btn').forEach(btn => {
+    btn.addEventListener('click', function() {
+        document.querySelectorAll('#addModal .type-switch .btn').forEach(b => {
+            b.classList.remove('active-expense', 'active-income');
+        });
+        const val = this.dataset.val;
+        this.classList.add('active-' + val);
+        document.getElementById('newType').value = val;
+    });
+});
+</script>
+{% endblock %}

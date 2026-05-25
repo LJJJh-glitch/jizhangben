@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(pip install *)",
+      "Bash(python -m pip install -r requirements.txt)",
+      "Bash(python3 -m pip install -r requirements.txt)",
+      "Bash(py *)",
+      "Bash(curl -s -b /tmp/cookies.txt http://localhost:5000/accounts -o /tmp/accounts.html -w \"%{http_code}\")",
+      "Bash(curl -s -b /tmp/cookies.txt -c /tmp/cookies.txt -X POST http://localhost:5000/accounts/add -d 'name=测试银行&type=bank&balance=10000' -D /tmp/add_account_headers.txt -o /dev/null -w '%{http_code}')",
+      "Bash(curl -s -b /tmp/cookies.txt -c /tmp/cookies.txt -X POST http://localhost:5000/accounts/add -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode name=测试银行 --data-urlencode type=bank --data-urlencode balance=10000 -D - -o /dev/null)",
+      "Bash(curl -s -b /tmp/cookies.txt http://localhost:5000/transactions/add)",
+      "Bash(curl -s -b /tmp/cookies.txt -c /tmp/cookies.txt -X POST http://localhost:5000/transactions/add -H 'Content-Type: application/x-www-form-urlencoded' --data-urlencode type=expense --data-urlencode amount=35.50 --data-urlencode account_id=3 --data-urlencode category_id=29 --data-urlencode date=2026-05-25 --data-urlencode description=午餐 -D - -o /dev/null)",
+      "Bash(curl -s -b /tmp/cookies.txt http://localhost:5000/reports)"
+    ]
+  }
+}
