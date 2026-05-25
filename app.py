@@ -5,6 +5,7 @@ from datetime import datetime, date, timedelta
 from calendar import monthrange
 
 from flask import Flask, render_template, request, redirect, url_for, flash, jsonify, Response
+from urllib.parse import urlparse
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 
 from models import db, User, Account, Category, Transaction, Tag, TransactionTag, Budget, DEFAULT_CATEGORIES
@@ -36,6 +37,16 @@ def init_db():
         db.create_all()
 
 
+def safe_date(year, month):
+    """安全地构造 date，处理无效的 year/month 参数"""
+    try:
+        year = max(2000, min(2100, year))
+        month = max(1, min(12, month))
+        return date(year, month, 1)
+    except (ValueError, TypeError):
+        return date.today().replace(day=1)
+
+
 # ==================== 认证路由 ====================
 
 @app.route('/')
@@ -58,7 +69,12 @@ def login():
         if user and user.check_password(password):
             login_user(user, remember=True)
             next_page = request.args.get('next')
-            return redirect(next_page or url_for('dashboard'))
+            # 防止 open redirect：允许相对路径和同源地址
+            if next_page:
+                parsed = urlparse(next_page)
+                if not parsed.netloc or parsed.netloc == request.host:
+                    return redirect(next_page)
+            return redirect(url_for('dashboard'))
         flash('用户名或密码错误', 'danger')
 
     return render_template('login.html')
@@ -77,6 +93,10 @@ def register():
 
         if not username or not email or not password:
             flash('所有字段都为必填项', 'danger')
+        elif len(password) < 6:
+            flash('密码长度不能少于6位', 'danger')
+        elif len(password) > 128:
+            flash('密码长度不能超过128位', 'danger')
         elif password != password2:
             flash('两次输入的密码不一致', 'danger')
         elif User.query.filter_by(username=username).first():
@@ -124,10 +144,18 @@ def dashboard():
     year = request.args.get('year', today.year, type=int)
     month = request.args.get('month', today.month, type=int)
 
-    # 本月收支统计
-    month_start = date(year, month, 1)
-    _, last_day = monthrange(year, month)
-    month_end = date(year, month, last_day)
+    # 安全的日期构造
+    try:
+        year = max(2000, min(2100, year))
+        month = max(1, min(12, month))
+        month_start = date(year, month, 1)
+        _, last_day = monthrange(year, month)
+        month_end = date(year, month, last_day)
+    except (ValueError, TypeError):
+        year, month = today.year, today.month
+        month_start = today.replace(day=1)
+        _, last_day = monthrange(year, month)
+        month_end = date(year, month, last_day)
 
     month_transactions = Transaction.query.filter(
         Transaction.user_id == current_user.id,
@@ -138,33 +166,29 @@ def dashboard():
     month_income = sum(t.amount for t in month_transactions if t.type == 'income')
     month_expense = sum(t.amount for t in month_transactions if t.type == 'expense')
 
-    # 最近 10 笔交易
     recent_transactions = Transaction.query.filter_by(
         user_id=current_user.id
     ).order_by(Transaction.date.desc(), Transaction.created_at.desc()).limit(10).all()
 
-    # 各账户余额
     accounts = Account.query.filter_by(user_id=current_user.id).all()
     total_balance = sum(a.balance for a in accounts)
 
-    # 本月分类支出
     category_expenses = {}
     for t in month_transactions:
         if t.type == 'expense':
             cat_name = t.category.name
             category_expenses[cat_name] = category_expenses.get(cat_name, 0) + t.amount
 
-    # 预算预警
     budgets = Budget.query.filter_by(user_id=current_user.id, month=month, year=year).all()
     budget_alerts = []
     for budget in budgets:
         spent = sum(t.amount for t in month_transactions if t.type == 'expense' and t.category_id == budget.category_id)
-        if spent > budget.amount * 0.8:
+        if budget.amount > 0 and spent > budget.amount * 0.8:
             budget_alerts.append({
                 'category': budget.category.name,
                 'budget': budget.amount,
                 'spent': spent,
-                'percent': round(spent / budget.amount * 100, 1)
+                'percent': round(spent / budget.amount * 100, 1) if budget.amount > 0 else 0
             })
 
     return render_template('dashboard.html',
@@ -177,7 +201,8 @@ def dashboard():
                            category_expenses=category_expenses,
                            budget_alerts=budget_alerts,
                            account_types=Account.ACCOUNT_TYPES,
-                           now_hour=datetime.now().hour)
+                           now_hour=datetime.now().hour,
+                           today=today)
 
 
 # ==================== 更多菜单 ====================
@@ -222,13 +247,15 @@ def account_edit(id):
     name = request.form.get('name', '').strip()
     account_type = request.form.get('type', '')
 
-    if name and account_type in Account.ACCOUNT_TYPES:
+    if not name:
+        flash('账户名称不能为空', 'danger')
+    elif account_type not in Account.ACCOUNT_TYPES:
+        flash('请选择有效的账户类型', 'danger')
+    else:
         account.name = name
         account.type = account_type
         db.session.commit()
         flash('账户更新成功', 'success')
-    else:
-        flash('请填写完整信息', 'danger')
 
     return redirect(url_for('accounts_list'))
 
@@ -294,7 +321,9 @@ def category_edit(id):
     name = request.form.get('name', '').strip()
     icon = request.form.get('icon', '').strip()
 
-    if name:
+    if not name:
+        flash('分类名称不能为空', 'danger')
+    else:
         category.name = name
         if icon:
             category.icon = icon
@@ -310,6 +339,8 @@ def category_delete(id):
     category = Category.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     if category.transactions.count() > 0:
         flash('该分类下有交易记录，无法删除', 'danger')
+    elif category.budgets.count() > 0:
+        flash('该分类下有预算设置，请先删除预算', 'danger')
     else:
         db.session.delete(category)
         db.session.commit()
@@ -327,12 +358,11 @@ def transactions_list():
 
     query = Transaction.query.filter_by(user_id=current_user.id)
 
-    # 筛选条件
     account_id = request.args.get('account_id', type=int)
     category_id = request.args.get('category_id', type=int)
     trans_type = request.args.get('type', '')
-    start_date = request.args.get('start_date', '')
-    end_date = request.args.get('end_date', '')
+    start_date_str = request.args.get('start_date', '')
+    end_date_str = request.args.get('end_date', '')
     tag_id = request.args.get('tag_id', type=int)
 
     if account_id:
@@ -341,10 +371,18 @@ def transactions_list():
         query = query.filter_by(category_id=category_id)
     if trans_type in ('income', 'expense'):
         query = query.filter_by(type=trans_type)
-    if start_date:
-        query = query.filter(Transaction.date >= start_date)
-    if end_date:
-        query = query.filter(Transaction.date <= end_date)
+    if start_date_str:
+        try:
+            start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            query = query.filter(Transaction.date >= start)
+        except ValueError:
+            pass
+    if end_date_str:
+        try:
+            end = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            query = query.filter(Transaction.date <= end)
+        except ValueError:
+            pass
     if tag_id:
         query = query.join(TransactionTag).filter(TransactionTag.tag_id == tag_id)
 
@@ -380,10 +418,18 @@ def transaction_add():
 
         if not all([account_id, category_id, amount, trans_type, trans_date]):
             flash('请填写完整的交易信息', 'danger')
+        elif trans_type not in ('income', 'expense'):
+            flash('无效的交易类型', 'danger')
         elif amount <= 0:
             flash('金额必须大于零', 'danger')
         else:
             account = Account.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+            try:
+                parsed_date = datetime.strptime(trans_date, '%Y-%m-%d').date()
+            except ValueError:
+                flash('日期格式无效', 'danger')
+                return redirect(url_for('transaction_add'))
+
             transaction = Transaction(
                 user_id=current_user.id,
                 account_id=account_id,
@@ -391,17 +437,15 @@ def transaction_add():
                 amount=amount,
                 type=trans_type,
                 description=description,
-                date=datetime.strptime(trans_date, '%Y-%m-%d').date()
+                date=parsed_date
             )
             db.session.add(transaction)
 
-            # 更新账户余额
             if trans_type == 'income':
                 account.balance += amount
             else:
                 account.balance -= amount
 
-            # 添加标签
             for tag_id in tag_ids:
                 tag = Tag.query.filter_by(id=tag_id, user_id=current_user.id).first()
                 if tag:
@@ -446,30 +490,38 @@ def transaction_edit(id):
 
         if not all([account_id, category_id, amount, trans_type, trans_date]):
             flash('请填写完整的交易信息', 'danger')
+        elif trans_type not in ('income', 'expense'):
+            flash('无效的交易类型', 'danger')
         else:
-            # 恢复原账户余额
-            old_account = Account.query.get(transaction.account_id)
-            if transaction.type == 'income':
-                old_account.balance -= transaction.amount
-            else:
-                old_account.balance += transaction.amount
+            # 恢复原账户余额（带用户校验）
+            old_account = Account.query.filter_by(id=transaction.account_id, user_id=current_user.id).first()
+            if old_account:
+                if transaction.type == 'income':
+                    old_account.balance -= transaction.amount
+                else:
+                    old_account.balance += transaction.amount
 
-            # 更新交易信息
+            # 校验新账户归属
+            new_account = Account.query.filter_by(id=account_id, user_id=current_user.id).first_or_404()
+
+            try:
+                parsed_date = datetime.strptime(trans_date, '%Y-%m-%d').date()
+            except ValueError:
+                flash('日期格式无效', 'danger')
+                return redirect(url_for('transaction_edit', id=id))
+
             transaction.account_id = account_id
             transaction.category_id = category_id
             transaction.amount = amount
             transaction.type = trans_type
             transaction.description = description
-            transaction.date = datetime.strptime(trans_date, '%Y-%m-%d').date()
+            transaction.date = parsed_date
 
-            # 更新新账户余额
-            new_account = Account.query.get(account_id)
             if trans_type == 'income':
                 new_account.balance += amount
             else:
                 new_account.balance -= amount
 
-            # 更新标签
             TransactionTag.query.filter_by(transaction_id=transaction.id).delete()
             for tag_id in tag_ids:
                 tag = Tag.query.filter_by(id=tag_id, user_id=current_user.id).first()
@@ -507,12 +559,12 @@ def transaction_edit(id):
 def transaction_delete(id):
     transaction = Transaction.query.filter_by(id=id, user_id=current_user.id).first_or_404()
 
-    # 恢复账户余额
-    account = Account.query.get(transaction.account_id)
-    if transaction.type == 'income':
-        account.balance -= transaction.amount
-    else:
-        account.balance += transaction.amount
+    account = Account.query.filter_by(id=transaction.account_id, user_id=current_user.id).first()
+    if account:
+        if transaction.type == 'income':
+            account.balance -= transaction.amount
+        else:
+            account.balance += transaction.amount
 
     db.session.delete(transaction)
     db.session.commit()
@@ -550,7 +602,9 @@ def tag_add():
 def tag_edit(id):
     tag = Tag.query.filter_by(id=id, user_id=current_user.id).first_or_404()
     name = request.form.get('name', '').strip()
-    if name:
+    if not name:
+        flash('标签名称不能为空', 'danger')
+    else:
         tag.name = name
         db.session.commit()
         flash('标签更新成功', 'success')
@@ -561,9 +615,13 @@ def tag_edit(id):
 @login_required
 def tag_delete(id):
     tag = Tag.query.filter_by(id=id, user_id=current_user.id).first_or_404()
+    count = tag.transaction_associations.count()
     db.session.delete(tag)
     db.session.commit()
-    flash('标签已删除', 'success')
+    if count > 0:
+        flash(f'标签已删除，已同步移除 {count} 条交易的标签关联', 'info')
+    else:
+        flash('标签已删除', 'success')
     return redirect(url_for('tags_list'))
 
 
@@ -576,11 +634,16 @@ def budget_list():
     year = request.args.get('year', today.year, type=int)
     month = request.args.get('month', today.month, type=int)
 
+    try:
+        year = max(2000, min(2100, year))
+        month = max(1, min(12, month))
+    except (ValueError, TypeError):
+        year, month = today.year, today.month
+
     budgets = Budget.query.filter_by(
         user_id=current_user.id, month=month, year=year
     ).all()
 
-    # 计算每个预算的使用情况
     month_start = date(year, month, 1)
     _, last_day = monthrange(year, month)
     month_end = date(year, month, last_day)
@@ -603,7 +666,6 @@ def budget_list():
             'percent': percent
         })
 
-    # 可设置预算的分类
     expense_categories = Category.query.filter_by(
         user_id=current_user.id, type='expense', parent_id=None
     ).all()
@@ -650,7 +712,9 @@ def budget_add():
 
         db.session.commit()
 
-    return redirect(url_for('budget_list', year=year, month=month))
+    safe_year = year if year else date.today().year
+    safe_month = month if month else date.today().month
+    return redirect(url_for('budget_list', year=safe_year, month=safe_month))
 
 
 @app.route('/budget/<int:id>/delete', methods=['POST'])
@@ -671,8 +735,8 @@ def budget_delete(id):
 def reports():
     today = date.today()
     year = request.args.get('year', today.year, type=int)
+    year = max(2000, min(2100, year))
 
-    # 月度收支趋势
     monthly_data = []
     for m in range(1, 13):
         month_start = date(year, m, 1)
@@ -694,11 +758,9 @@ def reports():
             'balance': income - expense
         })
 
-    # 年度汇总
     year_income = sum(d['income'] for d in monthly_data)
     year_expense = sum(d['expense'] for d in monthly_data)
 
-    # 分类支出排行
     year_start = date(year, 1, 1)
     year_end = date(year, 12, 31)
     year_transactions = Transaction.query.filter(
@@ -726,15 +788,23 @@ def reports():
 @app.route('/reports/export')
 @login_required
 def export_csv():
-    start_date = request.args.get('start_date', '')
-    end_date = request.args.get('end_date', '')
+    start_date_str = request.args.get('start_date', '')
+    end_date_str = request.args.get('end_date', '')
 
     query = Transaction.query.filter_by(user_id=current_user.id)
 
-    if start_date:
-        query = query.filter(Transaction.date >= start_date)
-    if end_date:
-        query = query.filter(Transaction.date <= end_date)
+    if start_date_str:
+        try:
+            start = datetime.strptime(start_date_str, '%Y-%m-%d').date()
+            query = query.filter(Transaction.date >= start)
+        except ValueError:
+            pass
+    if end_date_str:
+        try:
+            end = datetime.strptime(end_date_str, '%Y-%m-%d').date()
+            query = query.filter(Transaction.date <= end)
+        except ValueError:
+            pass
 
     transactions = query.order_by(Transaction.date.desc()).all()
 
@@ -770,6 +840,7 @@ def export_csv():
 @login_required
 def api_monthly_chart():
     year = request.args.get('year', date.today().year, type=int)
+    year = max(2000, min(2100, year))
     data = []
     for m in range(1, 13):
         month_start = date(year, m, 1)
@@ -796,9 +867,14 @@ def api_category_chart():
     year = request.args.get('year', today.year, type=int)
     month = request.args.get('month', today.month, type=int)
 
-    month_start = date(year, month, 1)
-    _, last_day = monthrange(year, month)
-    month_end = date(year, month, last_day)
+    try:
+        year = max(2000, min(2100, year))
+        month = max(1, min(12, month))
+        month_start = date(year, month, 1)
+        _, last_day = monthrange(year, month)
+        month_end = date(year, month, last_day)
+    except (ValueError, TypeError):
+        return jsonify([])
 
     transactions = Transaction.query.filter(
         Transaction.user_id == current_user.id,
@@ -815,6 +891,8 @@ def api_category_chart():
     return jsonify([{'name': k, 'value': v} for k, v in category_totals.items()])
 
 
+# 初始化数据库（WSGI 模式下也会执行）
+init_db()
+
 if __name__ == '__main__':
-    init_db()
     app.run(debug=True, port=5000)

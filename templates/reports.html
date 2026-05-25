@@ -4,7 +4,7 @@
 {% block header_right %}
 <select class="form-select form-select-sm" style="width:auto; padding:4px 24px 4px 8px; font-size:12px; background:rgba(255,255,255,0.2); color:#fff; border:none;"
         onchange="location.href='?year='+this.value">
-    {% for y in range(2024, 2030) %}
+    {% for y in range(2020, 2035) %}
         <option value="{{ y }}" {% if y == year %}selected{% endif %} style="color:#333;">{{ y }}年</option>
     {% endfor %}
 </select>

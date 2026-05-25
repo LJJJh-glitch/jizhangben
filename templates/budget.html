@@ -15,7 +15,7 @@
     <div class="d-flex gap-2">
         <select class="form-select form-select-sm" style="width:auto; padding:6px 28px 6px 10px; font-size:13px;"
                 onchange="location.href='?year='+this.value+'&month={{ month }}'">
-            {% for y in range(2024, 2030) %}
+            {% for y in range(2020, 2035) %}
                 <option value="{{ y }}" {% if y == year %}selected{% endif %}>{{ y }}年</option>
             {% endfor %}
         </select>

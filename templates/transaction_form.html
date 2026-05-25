@@ -10,7 +10,7 @@
 
     <!-- 类型切换 -->
     <div class="type-switch">
-        <button type="button" class="btn {% if not edit or transaction.type == 'expense' %}active-expense{% endif %}" data-type="expense">
+        <button type="button" class="btn {% if not edit %}active-expense{% elif transaction.type == 'expense' %}active-expense{% endif %}" data-type="expense">
             <i class="bi bi-arrow-down-circle"></i> 支出
         </button>
         <button type="button" class="btn {% if edit and transaction.type == 'income' %}active-income{% endif %}" data-type="income">
@@ -89,7 +89,7 @@
         <div class="card-body">
             <label class="form-label">日期</label>
             <div class="date-chips" id="dateChips">
-                <button type="button" class="date-chip active" data-date="{{ today }}">今天</button>
+                <button type="button" class="date-chip" data-date="{{ today }}">今天</button>
                 <button type="button" class="date-chip" data-date="{{ yesterday }}">昨天</button>
                 <button type="button" class="date-chip" data-date="{{ two_days_ago }}">前天</button>
                 {% for d in recent_dates %}
@@ -97,6 +97,7 @@
                 {% endfor %}
             </div>
             <input type="hidden" name="date" id="dateInput" value="{{ today }}" required>
+            <div id="editDate" data-value="{{ today }}" style="display:none;"></div>
         </div>
     </div>
 
@@ -227,6 +228,23 @@ document.querySelectorAll('.date-chip').forEach(chip => {
         document.getElementById('dateInput').value = this.dataset.date;
     });
 });
+
+// 初始化日期选中状态
+(function() {
+    const currentDate = document.getElementById('dateInput').value;
+    let matched = false;
+    document.querySelectorAll('.date-chip').forEach(chip => {
+        if (chip.dataset.date === currentDate) {
+            chip.classList.add('active');
+            matched = true;
+        }
+    });
+    // 如果没有匹配的日期芯片，选中"今天"作为默认
+    if (!matched) {
+        const todayChip = document.querySelector('.date-chip[data-date="{{ today }}"]');
+        if (todayChip) todayChip.classList.add('active');
+    }
+})();
 
 // 初始化筛选
 const initType = document.getElementById('typeInput').value || 'expense';

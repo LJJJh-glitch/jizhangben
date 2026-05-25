@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, date as date_type
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
@@ -74,7 +74,7 @@ class Transaction(db.Model):
     amount = db.Column(db.Float, nullable=False)
     type = db.Column(db.String(10), nullable=False)  # income, expense
     description = db.Column(db.String(500), default='')
-    date = db.Column(db.Date, nullable=False, default=datetime.now().date)
+    date = db.Column(db.Date, nullable=False, default=date_type.today)
     created_at = db.Column(db.DateTime, default=datetime.now)
 
     tag_associations = db.relationship('TransactionTag', backref='transaction', lazy='dynamic', cascade='all, delete-orphan')
@@ -87,7 +87,7 @@ class Tag(db.Model):
     user_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     name = db.Column(db.String(50), nullable=False)
 
-    transaction_associations = db.relationship('TransactionTag', backref='tag', lazy='dynamic', cascade='all, delete-orphan')
+    transaction_associations = db.relationship('TransactionTag', backref='tag', lazy='select')
 
 
 class TransactionTag(db.Model):
