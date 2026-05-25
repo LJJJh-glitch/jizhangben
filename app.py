@@ -14,6 +14,11 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'zhangben-dev-key-change
 app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zhangben.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
+# 持久登录配置 - 30天内免登录
+app.config['REMEMBER_COOKIE_DURATION'] = timedelta(days=30)
+app.config['REMEMBER_COOKIE_HTTPONLY'] = True
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)
+
 db.init_app(app)
 login_manager = LoginManager()
 login_manager.init_app(app)
@@ -95,7 +100,7 @@ def register():
                 db.session.add(category)
             db.session.commit()
 
-            login_user(user)
+            login_user(user, remember=True)
             flash('注册成功！', 'success')
             return redirect(url_for('dashboard'))
 
