@@ -1,5 +1,6 @@
 import csv
 import io
+import os
 from datetime import datetime, date, timedelta
 from calendar import monthrange
 
@@ -9,8 +10,8 @@ from flask_login import LoginManager, login_user, logout_user, login_required, c
 from models import db, User, Account, Category, Transaction, Tag, TransactionTag, Budget, DEFAULT_CATEGORIES
 
 app = Flask(__name__)
-app.config['SECRET_KEY'] = 'zhangben-secret-key-change-in-production'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///zhangben.db'
+app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'zhangben-dev-key-change-me')
+app.config['SQLALCHEMY_DATABASE_URI'] = 'sqlite:///' + os.path.join(os.path.dirname(os.path.abspath(__file__)), 'zhangben.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
 db.init_app(app)
